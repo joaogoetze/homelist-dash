@@ -38,6 +38,10 @@ export default function RegisterScreen() {
   }));
   const allPasswordChecksPassed = passwordChecks.every(c => c.passed);
 
+  const failedChecks = passwordChecks
+  .filter(c => !c.passed)
+  .map(c => c.label);
+
 async function handleRegister() {
     if (!isValidEmail) {
       Toast.show({
