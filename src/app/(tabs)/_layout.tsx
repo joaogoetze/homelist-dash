@@ -1,26 +1,30 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
-import React from 'react';
 
 export default function TabLayout() {
-
   return (
-    <Tabs>
+    <Tabs
+      screenOptions={{
+        tabBarActiveTintColor: '#28a745',
+        tabBarInactiveTintColor: '#8e8e93',
+      }}
+    >
       <Tabs.Screen
-        name="users"
+        name="index"
         options={{
-          title: 'Users',
+          title: 'Listas',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="list" size={size} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="lists"
+        name="profile"
         options={{
-          title: 'Lists',
-        }}
-      />
-      <Tabs.Screen
-        name="items"
-        options={{
-          title: 'Items',
+          title: 'Perfil',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person" size={size} color={color} />
+          ),
         }}
       />
     </Tabs>
