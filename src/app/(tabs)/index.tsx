@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -13,10 +13,11 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  useColorScheme,
 } from 'react-native';
 import { API_BASE } from '@/config/env';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { useColors } from '@/hooks/useColors';
+import { useAuth } from '@/hooks/useAuth';
 
 type List = {
   id: number;
@@ -36,13 +37,9 @@ export default function ListsScreen() {
 
 
   const router = useRouter();
-  const colorScheme = useColorScheme();
   const authenticatedFetch = useAuthenticatedFetch();
-  const isDark = colorScheme === 'dark';
-
-  const colors = isDark
-    ? { bg: '#0f0f0f', card: '#1c1c1e', text: '#f2f2f7', sub: '#8e8e93', border: '#2c2c2e', accent: '#34c759', danger: '#ff453a', sheet: '#2c2c2e' }
-    : { bg: '#f2f2f7', card: '#ffffff', text: '#1c1c1e', sub: '#8e8e93', border: '#e5e5ea', accent: '#34c759', danger: '#ff3b30', sheet: '#f9f9f9' };
+  const { colors } = useColors();
+  const { accessToken } = useAuth();
 
   const fetchLists = useCallback(async () => {
     try {
@@ -57,7 +54,10 @@ export default function ListsScreen() {
     }
   }, [authenticatedFetch]);
 
-  useEffect(() => { fetchLists(); }, [fetchLists]);
+  useEffect(() => {
+  if (!accessToken) return;
+  fetchLists();
+}, [accessToken, fetchLists]);
 
   const onRefresh = () => { setRefreshing(true); fetchLists(); };
 
@@ -243,9 +243,17 @@ export default function ListsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  listContent: { padding: 16 },
+  container: { 
+    flex: 1 
+  },
+  centered: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  listContent: { 
+    padding: 16
+  },
   card: {
     borderRadius: 12,
     marginBottom: 8,
@@ -263,9 +271,21 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingRight: 48,
   },
-  iconCircle: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  iconEmoji: { fontSize: 20 },
-  listName: { fontSize: 17, fontWeight: '500', flex: 1 },
+  iconCircle: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    alignItems: 'center', 
+    justifyContent: 'center'
+  },
+  iconEmoji: { 
+    fontSize: 20 
+  },
+  listName: { 
+    fontSize: 17, 
+    fontWeight: '500',
+    flex: 1 
+  },
   menuBtn: {
     position: 'absolute',
     right: 12,
@@ -275,7 +295,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 8,
   },
-  menuDots: { fontSize: 10, letterSpacing: 1.5, lineHeight: 14 },
+  menuDots: { 
+    fontSize: 10, 
+    letterSpacing: 1.5, 
+    lineHeight: 14
+  },
   actionSheet: {
     marginHorizontal: 12,
     marginBottom: 10,
@@ -283,12 +307,27 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     overflow: 'hidden',
   },
-  actionRow: { paddingVertical: 12, paddingHorizontal: 16 },
-  actionText: { fontSize: 15 },
-  actionDivider: { height: 0.5 },
-  empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
-  emptyEmoji: { fontSize: 48 },
-  emptyText: { fontSize: 16 },
+  actionRow: { 
+    paddingVertical: 12, 
+    paddingHorizontal: 16 
+  },
+  actionText: { 
+    fontSize: 15 
+  },
+  actionDivider: {
+    height: 0.5 
+  },
+  empty: { 
+    alignItems: 'center', 
+    paddingTop: 80, 
+    gap: 12 
+  },
+  emptyEmoji: { 
+    fontSize: 48 
+  },
+  emptyText: { 
+    fontSize: 16 
+  },
   fab: {
     position: 'absolute',
     bottom: 30,
@@ -301,14 +340,48 @@ const styles = StyleSheet.create({
     elevation: 6,
     shadowColor: '#000',
     shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { 
+      width: 0, 
+      height: 2 
+    },
     shadowRadius: 4,
   },
-  fabIcon: { color: '#fff', fontSize: 28, fontWeight: '600' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 32 },
-  modalCard: { borderRadius: 16, padding: 20, gap: 16 },
-  modalTitle: { fontSize: 17, fontWeight: '600' },
-  modalInput: { borderWidth: 0.5, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
-  modalActions: { flexDirection: 'row', gap: 10 },
-  modalBtn: { flex: 1, borderWidth: 0.5, borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  fabIcon: { 
+    color: '#fff', 
+    fontSize: 28, 
+    fontWeight: '600' 
+  },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.4)', 
+    justifyContent: 'center', 
+    padding: 32 
+  },
+  modalCard: { 
+    borderRadius: 16, 
+    padding: 20, 
+    gap: 16 
+  },
+  modalTitle: { 
+    fontSize: 17, 
+    fontWeight: '600' 
+  },
+  modalInput: { 
+    borderWidth: 0.5, 
+    borderRadius: 10, 
+    paddingHorizontal: 12, 
+    paddingVertical: 10, 
+    fontSize: 16
+  },
+  modalActions: { 
+    flexDirection: 'row', 
+    gap: 10 
+  },
+  modalBtn: { 
+    flex: 1, 
+    borderWidth: 0.5, 
+    borderRadius: 10, 
+    paddingVertical: 11, 
+    alignItems: 'center' 
+  },
 });

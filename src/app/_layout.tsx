@@ -3,9 +3,22 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import Toast, { BaseToast } from 'react-native-toast-message';
+import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+
+const toastConfig = {
+  error: (props: any) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#ab2222', backgroundColor: '#ab2222', height: 70, paddingHorizontal: 16 }}
+      text1Style={{ color: '#fff', fontSize: 16 }}
+      text2Style={{ color: '#fff', fontSize: 14 }}
+    />
+  ),
+};
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { accessToken, loading } = useAuth();
@@ -38,6 +51,7 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
+    <KeyboardProvider>
     <AuthProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
 
@@ -57,8 +71,11 @@ export default function RootLayout() {
           </Stack>
         </AuthGate>
 
+        <Toast config={toastConfig} />
         <StatusBar style="auto" />
       </ThemeProvider>
     </AuthProvider>
+    </KeyboardProvider>
+
   );
 }

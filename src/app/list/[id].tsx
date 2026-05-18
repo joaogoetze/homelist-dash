@@ -4,17 +4,20 @@ import {
   ActivityIndicator,
   FlatList,
   Modal,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  useColorScheme
+  InteractionManager,
+  KeyboardAvoidingView,
+  Platform
 } from 'react-native';
 import { API_BASE } from '@/config/env';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+import { useColors } from '@/hooks/useColors';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ApiItem = {
   id: number;
@@ -32,30 +35,26 @@ type Item = {
 };
 
 export default function ListDetailScreen() {
+  const insets = useSafeAreaInsets();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [showShare, setShowShare] = useState(false);
   const [email, setEmail] = useState('');
   
   
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
   const navigation = useNavigation();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const authenticatedFetch = useAuthenticatedFetch();
+  const { colors } = useColors();
   
 
-const openShareModal = () => {
-  setShowShare(true);
-};
+  const openShareModal = () => {
+    setShowShare(true);
+  };
 
   // Mapa de refs para cada TextInput pelo id do item
   const inputRefs = useRef<Record<string, TextInput | null>>({});
   const flatListRef = useRef<FlatList>(null);
-
-  const colors = isDark
-    ? { bg: '#0f0f0f', card: '#1c1c1e', text: '#f2f2f7', sub: '#8e8e93', border: '#2c2c2e', accent: '#34c759', check: '#34c759', strikethrough: '#636366' }
-    : { bg: '#f2f2f7', card: '#ffffff', text: '#1c1c1e', sub: '#8e8e93', border: '#e5e5ea', accent: '#34c759', check: '#34c759', strikethrough: '#8e8e93' };
 
   // Define o título da tela com o nome da lista
   useLayoutEffect(() => {
@@ -241,10 +240,17 @@ const handleDelete = (item: Item) => {
       return next;
     });
 
-    // Aguarda o render do novo item antes de focar
-    setTimeout(() => {
-      inputRefs.current[newItem.localId]?.focus();
-    }, 80);
+    requestAnimationFrame(() => {
+  flatListRef.current?.scrollToIndex({
+    index: index + 1,
+    animated: true,
+    viewPosition: 0.5,
+  });
+
+  InteractionManager.runAfterInteractions(() => {
+    inputRefs.current[newItem.localId]?.focus();
+  });
+});
   };
 
   // Ao pressionar Backspace em item vazio, remove e volta ao anterior
@@ -275,7 +281,17 @@ const handleDelete = (item: Item) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.bg }]}>
+    <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={90}
+  >
+
+  
+    <SafeAreaView
+  edges={['bottom']}
+  style={[styles.container, { backgroundColor: colors.bg }]}
+>
       {/* Contador */}
       <View style={styles.statsBar}>
         <Text style={[styles.statsText, { color: colors.sub }]}>
@@ -285,11 +301,23 @@ const handleDelete = (item: Item) => {
 
       <FlatList
         ref={flatListRef}
+        contentContainerStyle={{
+    paddingBottom: insets.bottom,
+  }}
+        maintainVisibleContentPosition={{
+  minIndexForVisible: 0,
+}}
         data={items}
         keyExtractor={(item) => item.localId}
         style={[styles.list, { backgroundColor: colors.card }]}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="interactive"
+        keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+  getItemLayout={(_, index) => ({
+    length: 56,
+    offset: 56 * index,
+    index,
+  })}
         renderItem={({ item, index }) => (
           <View
             style={[
@@ -321,6 +349,13 @@ const handleDelete = (item: Item) => {
               ref={(ref) => {
                 inputRefs.current[item.localId] = ref;
               }}
+              onFocus={() => {
+    flatListRef.current?.scrollToIndex({
+      index,
+      animated: true,
+      viewPosition: 0.5,
+    });
+  }}
               value={item.text}
               onChangeText={(text) => updateText(item.localId, text)}
               onSubmitEditing={() => addItemAfter(index)}
@@ -395,6 +430,7 @@ const handleDelete = (item: Item) => {
   </Modal>
 )}
     </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -402,6 +438,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  
   modalOverlay: {
   flex: 1,
   backgroundColor: 'rgba(0,0,0,0.4)',
@@ -440,10 +477,10 @@ modalBtn: {
     justifyContent: 'center',
     alignItems: 'center',
   },
-  statsBar: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
+statsBar: {
+  paddingHorizontal: 20,
+  paddingVertical: 4,
+},
   statsText: {
     fontSize: 13,
     fontWeight: '500',

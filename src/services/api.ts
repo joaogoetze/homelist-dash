@@ -18,7 +18,7 @@ export async function authFetch(
 
     if (!newToken) {
       await logout();
-      return response;
+      throw new Error('Sessão expirada');
     }
 
     response = await fetch(url, {

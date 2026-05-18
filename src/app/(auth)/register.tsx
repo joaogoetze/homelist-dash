@@ -1,10 +1,12 @@
 import { ThemedInput } from "@/components/ui/ThemedInput";
 import { API_BASE } from "@/config/env";
 import { useAuth } from "@/hooks/useAuth";
+import { useColors } from "@/hooks/useColors";
 import { useRouter } from "expo-router";
 import { useState, useRef } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, TextInput as RNTextInput, useColorScheme, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet, TextInput as RNTextInput, KeyboardAvoidingView, Platform, ScrollView, Keyboard, TouchableWithoutFeedback } from "react-native";
 import Toast from 'react-native-toast-message';
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 const passwordRequirements = [
   { key: 'length', label: 'Mínimo 8 caracteres', test: (p: string) => p.length >= 8 },
@@ -16,16 +18,13 @@ const passwordRequirements = [
 export default function RegisterScreen() {
   const router = useRouter();
   const { login } = useAuth();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const colors = isDark
-    ? { text: '#f2f2f7', sub: '#8e8e93', border: '#2c2c2e', success: '#34c759', error: '#ff453a' }
-    : { text: '#1c1c1e', sub: '#8e8e93', border: '#e5e5ea', success: '#34c759', error: '#ff3b30' };
+  const { colors } = useColors();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const emailInputRef = useRef<RNTextInput>(null);
   const passwordInputRef = useRef<RNTextInput>(null);
 
@@ -70,82 +69,80 @@ async function handleRegister() {
         body: JSON.stringify({ name, email, password }),
       });
 
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.error || 'Erro ao criar conta');
+        setLoading(false);
+        return;
       }
 
+      const data = await response.json();
       await login(data.accessToken, data.refreshToken);
       router.replace("/");
     } catch (error) {
-      Toast.show({
-        type: 'error',
-        text1: 'Erro',
-        text2: 'Não foi possível criar a conta',
-      });
+      console.error(error);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.form}>
-          <Text style={[styles.label, { color: colors.text }]}>Nome</Text>
-          <ThemedInput
-            placeholder="Nome"
-            value={name}
-            onChangeText={setName}
-            style={styles.input}
-            returnKeyType="next"
-            onSubmitEditing={() => emailInputRef.current?.focus()}
-          />
-          <Text style={[styles.label, { color: colors.text }]}>Email</Text>
-          <ThemedInput
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            style={styles.input}
-            ref={emailInputRef}
-            returnKeyType="next"
-            onSubmitEditing={() => passwordInputRef.current?.focus()}
-          />
-          <Text style={[styles.label, { color: colors.text }]}>Senha</Text>
-          <ThemedInput
-            placeholder="Senha"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            style={styles.input}
-            ref={passwordInputRef}
-          />
+  <>  
+      <KeyboardAwareScrollView   bottomOffset={24}
+  contentContainerStyle={styles.scrollContent}
+  keyboardShouldPersistTaps="handled"
+  showsVerticalScrollIndicator={false}>
+<View style={styles.form}>
+              <Text style={[styles.label, { color: colors.text }]}>Nome</Text>
+              <ThemedInput
+                placeholder="Nome"
+                value={name}
+                onChangeText={setName}
+                style={styles.input}
+                returnKeyType="next"
+                onSubmitEditing={() => emailInputRef.current?.focus()}
+              />
+              <Text style={[styles.label, { color: colors.text }]}>Email</Text>
+              <ThemedInput
+                placeholder="Email"
+                value={email}
+                onChangeText={setEmail}
+                style={styles.input}
+                ref={emailInputRef}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
+              />
+              <Text style={[styles.label, { color: colors.text }]}>Senha</Text>
+              <ThemedInput
+                placeholder="Senha"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                style={styles.input}
+                ref={passwordInputRef}
+                rightIcon={showPassword ? "eye-off" : "eye" as any}
+                onRightIconPress={() => setShowPassword(!showPassword)}
+              />
           
-          {password.length > 0 && (
-            <View style={styles.requirementsContainer}>
-              {passwordChecks.map((check) => (
-                <View key={check.key} style={styles.requirementRow}>
-                  <Text style={[
-                    styles.requirementIcon, 
-                    { color: check.passed ? colors.success : colors.sub }
-                  ]}>
-                    {check.passed ? '✓' : '○'}
-                  </Text>
-                  <Text style={[
-                    styles.requirementLabel, 
-                    { color: check.passed ? colors.success : colors.sub }
-                  ]}>
-                    {check.label}
-                  </Text>
+              {password.length > 0 && (
+                <View style={styles.requirementsContainer}>
+                  {passwordChecks.map((check) => (
+                    <View key={check.key} style={styles.requirementRow}>
+                      <Text style={[
+                        styles.requirementIcon, 
+                        { color: check.passed ? colors.success : colors.sub }
+                      ]}>
+                        {check.passed ? '✓' : '○'}
+                      </Text>
+                      <Text style={[
+                        styles.requirementLabel, 
+                        { color: check.passed ? colors.success : colors.sub }
+                      ]}>
+                        {check.label}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
-          )}
-
+              )}
+          
           <TouchableOpacity 
             style={[styles.button, isDisabled && styles.buttonDisabled]} 
             onPress={handleRegister}
@@ -161,8 +158,10 @@ async function handleRegister() {
             </Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </KeyboardAwareScrollView >
+    
+  </>  
+            
   );
 }
 
@@ -172,26 +171,25 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    padding: 24,
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
   },
   form: {
     width: '100%',
-    alignItems: 'center',
-    gap: 5,
+    maxWidth: 400,
+    alignSelf: 'center',
+    gap: 10,
   },
   label: {
-    width: '100%',
+    
     fontSize: 14,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   input: {
     width: '100%',
-    // outros estilos específicos do ThemedInput podem ser sobrescritos aqui
   },
-button: {
+  button: {
     width: '100%',
     backgroundColor: '#28a745',
     paddingVertical: 12,
@@ -213,7 +211,7 @@ button: {
   requirementsContainer: {
     width: '100%',
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 1,
   },
   requirementRow: {
     flexDirection: 'row',
@@ -232,6 +230,7 @@ button: {
     marginTop: 12,
     color: '#8e8e93',
     fontSize: 14,
+    textAlign: 'center',
   },
   linkHighlight: {
     color: '#28a745',
