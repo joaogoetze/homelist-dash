@@ -5,7 +5,6 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import Toast, { BaseToast } from 'react-native-toast-message';
 import { KeyboardProvider } from "react-native-keyboard-controller";
-
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 
@@ -54,12 +53,10 @@ export default function RootLayout() {
     <KeyboardProvider>
     <AuthProvider>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-
         <AuthGate>
           <Stack>
             <Stack.Screen name="(auth)" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
             <Stack.Screen
               name="list/[id]"
               options={{
@@ -70,12 +67,10 @@ export default function RootLayout() {
             />
           </Stack>
         </AuthGate>
-
         <Toast config={toastConfig} />
         <StatusBar style="auto" />
       </ThemeProvider>
     </AuthProvider>
     </KeyboardProvider>
-
   );
 }

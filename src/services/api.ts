@@ -1,3 +1,6 @@
+import { parseResponse } from './parseResponse';
+import { ApiError } from './api-error';
+
 export async function authFetch(
   url: string,
   options: RequestInit,
@@ -18,7 +21,7 @@ export async function authFetch(
 
     if (!newToken) {
       await logout();
-      throw new Error('Sessão expirada');
+      throw new ApiError('Sessão expirada', 401);
     }
 
     response = await fetch(url, {
@@ -30,5 +33,5 @@ export async function authFetch(
     });
   }
 
-  return response;
+  return parseResponse(response);
 }

@@ -4,56 +4,58 @@ import { useAuth } from '@/hooks/useAuth';
 import { useColors } from '@/hooks/useColors';
 import { useRouter } from 'expo-router';
 import { useState, useRef } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, TextInput as RNTextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, TextInput as RNTextInput, ScrollView } from 'react-native';
 import { handleError } from '@/services/errorHandler';
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { parseResponse } from '@/services/parseResponse';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
-    
+    const [showPassword, setShowPassword] = useState(false); 
     const router = useRouter();
     const { login } = useAuth();
     const { colors } = useColors();
     const passwordInputRef = useRef<RNTextInput>(null);
     const isDisabled = !email.trim() || !password.trim() || loading;
 
-async function handleLogin() {
-  setLoading(true);
+    async function handleLogin() {
+        setLoading(true);
 
-  try {
-    const response = await fetch(`${API_BASE}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
+        try {
+            const response = await fetch(`${API_BASE}/auth/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+            });
 
-    console.log("Login response status:", response);
-    if (!response.ok) {
-      throw new Error('Login falhou');
+            const data = await parseResponse(response);
+            await login(data.accessToken, data.refreshToken);
+
+            router.replace("/");
+        } catch (error) {
+            handleError(error);
+        } finally {
+            setLoading(false);
+        }
     }
 
-    const data = await response.json();
-    await login(data.accessToken, data.refreshToken);
-
-    router.replace("/");
-  } catch (error) {
-    handleError(error);
-  } finally {
-    setLoading(false);
-  }
-}
-
     return (
-      <KeyboardAwareScrollView   bottomOffset={24}
-  contentContainerStyle={styles.scrollContent}
-  keyboardShouldPersistTaps="handled"
-  showsVerticalScrollIndicator={false}>
-            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView   
+            bottomOffset={24}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+        >
+            <ScrollView 
+                contentContainerStyle={styles.scrollContent} 
+                keyboardShouldPersistTaps="handled"
+            >
                 <View style={styles.form}>
-                    <Text style={[styles.label, { color: colors.text }]}>Email</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>
+                        Email
+                    </Text>
                     <ThemedInput 
                         placeholder="Email"
                         value={email}
@@ -62,7 +64,9 @@ async function handleLogin() {
                         returnKeyType="next"
                         onSubmitEditing={() => passwordInputRef.current?.focus()}
                     />
-                    <Text style={[styles.label, { color: colors.text }]}>Senha</Text>
+                    <Text style={[styles.label, { color: colors.text }]}>
+                        Senha
+                    </Text>
                     <ThemedInput
                         placeholder="Senha"
                         value={password}
@@ -84,7 +88,10 @@ async function handleLogin() {
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => router.push("/register")}>
                         <Text style={styles.linkText}>
-                            Não tem conta? <Text style={styles.linkHighlight}>Criar conta</Text>
+                            Não tem conta?{' '}
+                            <Text style={styles.linkHighlight}>
+                                Criar conta
+                            </Text>
                         </Text>
                     </TouchableOpacity>
                 </View>

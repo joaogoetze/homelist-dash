@@ -11,23 +11,21 @@ import { useAuth } from '@/hooks/useAuth';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { useColors } from '@/hooks/useColors';
 import { API_BASE } from '@/config/env';
+import { handleError } from '@/services/errorHandler';
 
 export default function ProfileScreen() {
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const { logout } = useAuth();
   const authenticatedFetch = useAuthenticatedFetch();
   const router = useRouter();
-
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
-
   const { colors } = useColors();
 
   const getUser = async () => {
     try {
-      const res = await authenticatedFetch(`${API_BASE}/users/me`);
-      const data = await res.json();
+      const data = await authenticatedFetch(`${API_BASE}/users/me`);
       setUser(data);
     } catch (error) {
-      console.error('Erro ao buscar usuário:', error);
+      handleError(error);
     }
   };
 
@@ -43,18 +41,17 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, width: '100%' }}>
       <View style={styles.container}>
+
         {user && (
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={[styles.avatar, { backgroundColor: colors.border }]}>
               <Text style={styles.avatarText}>
-                {user.name.charAt(0).toUpperCase()}
+                {user?.name?.charAt(0).toUpperCase()}
               </Text>
             </View>
-
             <Text style={[styles.name, { color: colors.text }]}>
               {user.name}
             </Text>
-
             <Text style={[styles.email, { color: colors.sub }]}>
               {user.email}
             </Text>
@@ -83,7 +80,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'stretch',
   },
-
   card: {
     width: '100%',
     borderRadius: 16,
@@ -95,7 +91,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-
   avatar: {
     width: 72,
     height: 72,
@@ -104,22 +99,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
-
   avatarText: {
     fontSize: 28,
     fontWeight: '600',
   },
-
   name: {
     fontSize: 20,
     fontWeight: '600',
   },
-
   email: {
     fontSize: 14,
     marginTop: 4,
   },
-
   btn: {
     backgroundColor: '#ff3b30',
     borderRadius: 10,
@@ -128,11 +119,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     width: '100%',
   },
-
   btnText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
   },
-
 });

@@ -1,12 +1,15 @@
 {
   "expo": {
-    "name": "homelist-dash",
+    "name": "Tá faltando",
     "slug": "homelist-dash",
     "version": "1.0.0",
+
     "orientation": "portrait",
-    "icon": "./src/assets/images/icon.png",
-    "scheme": "homelistdash",
     "userInterfaceStyle": "automatic",
+
+    "icon": "./src/assets/images/icon.png",
+
+    "scheme": "homelistdash",
 
     "ios": {
       "supportsTablet": true,
@@ -14,9 +17,15 @@
     },
 
     "android": {
+      "package": "com.joaogoetze.homelistdash",
+
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.joaogoetze.homelistdash"
+
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      }
     },
 
     "web": {
@@ -25,7 +34,17 @@
 
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+
+      [
+        "expo-splash-screen",
+        {
+          "image": "./src/assets/images/splash.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF"
+        }
+      ]
     ],
 
     "experiments": {
@@ -35,6 +54,7 @@
 
     "extra": {
       "router": {},
+
       "eas": {
         "projectId": "0356aaac-3ca1-44d2-95ca-0bf354667174"
       }

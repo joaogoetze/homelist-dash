@@ -4,9 +4,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useColors } from "@/hooks/useColors";
 import { useRouter } from "expo-router";
 import { useState, useRef } from "react";
-import { View, TouchableOpacity, Text, StyleSheet, TextInput as RNTextInput, KeyboardAvoidingView, Platform, ScrollView, Keyboard, TouchableWithoutFeedback } from "react-native";
-import Toast from 'react-native-toast-message';
+import { View, TouchableOpacity, Text, StyleSheet, TextInput as RNTextInput } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { parseResponse } from "@/services/parseResponse";
+import { handleError } from '@/services/errorHandler';
+import Toast from 'react-native-toast-message';
 
 const passwordRequirements = [
   { key: 'length', label: 'Mínimo 8 caracteres', test: (p: string) => p.length >= 8 },
@@ -16,32 +18,33 @@ const passwordRequirements = [
 ];
 
 export default function RegisterScreen() {
-  const router = useRouter();
-  const { login } = useAuth();
-  const { colors } = useColors();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
+  const { login } = useAuth();
+  const { colors } = useColors();
   const emailInputRef = useRef<RNTextInput>(null);
   const passwordInputRef = useRef<RNTextInput>(null);
 
   const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  
   const isDisabled = !name.trim() || !email.trim() || !password.trim() || loading || !isValidEmail;
   
   const passwordChecks = passwordRequirements.map(req => ({
     ...req,
     passed: req.test(password)
   }));
+  
   const allPasswordChecksPassed = passwordChecks.every(c => c.passed);
-
+  
   const failedChecks = passwordChecks
   .filter(c => !c.passed)
   .map(c => c.label);
 
-async function handleRegister() {
+  async function handleRegister() {
     if (!isValidEmail) {
       Toast.show({
         type: 'error',
@@ -60,108 +63,107 @@ async function handleRegister() {
     }
 
     setLoading(true);
+    
     try {
       const response = await fetch(`${API_BASE}/auth/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
       });
 
-      if (!response.ok) {
-        setLoading(false);
-        return;
-      }
-
-      const data = await response.json();
+      const data = await parseResponse(response);
       await login(data.accessToken, data.refreshToken);
+      
       router.replace("/");
     } catch (error) {
-      console.error(error);
+      handleError(error);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-  <>  
-      <KeyboardAwareScrollView   bottomOffset={24}
-  contentContainerStyle={styles.scrollContent}
-  keyboardShouldPersistTaps="handled"
-  showsVerticalScrollIndicator={false}>
-<View style={styles.form}>
-              <Text style={[styles.label, { color: colors.text }]}>Nome</Text>
-              <ThemedInput
-                placeholder="Nome"
-                value={name}
-                onChangeText={setName}
-                style={styles.input}
-                returnKeyType="next"
-                onSubmitEditing={() => emailInputRef.current?.focus()}
-              />
-              <Text style={[styles.label, { color: colors.text }]}>Email</Text>
-              <ThemedInput
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                style={styles.input}
-                ref={emailInputRef}
-                returnKeyType="next"
-                onSubmitEditing={() => passwordInputRef.current?.focus()}
-              />
-              <Text style={[styles.label, { color: colors.text }]}>Senha</Text>
-              <ThemedInput
-                placeholder="Senha"
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-                style={styles.input}
-                ref={passwordInputRef}
-                rightIcon={showPassword ? "eye-off" : "eye" as any}
-                onRightIconPress={() => setShowPassword(!showPassword)}
-              />
+    <KeyboardAwareScrollView   
+      bottomOffset={24}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.form}>
+        <Text style={[styles.label, { color: colors.text }]}>
+          Nome
+        </Text>
+        <ThemedInput
+          placeholder="Nome"
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+          returnKeyType="next"
+          onSubmitEditing={() => emailInputRef.current?.focus()}
+        />
+        <Text style={[styles.label, { color: colors.text }]}>
+          Email
+        </Text>
+        <ThemedInput
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          style={styles.input}
+          ref={emailInputRef}
+          returnKeyType="next"
+          onSubmitEditing={() => passwordInputRef.current?.focus()}
+        />
+        <Text style={[styles.label, { color: colors.text }]}>
+          Senha
+        </Text>
+        <ThemedInput
+          placeholder="Senha"
+          secureTextEntry={!showPassword}
+          value={password}
+          onChangeText={setPassword}
+          style={styles.input}
+          ref={passwordInputRef}
+          rightIcon={showPassword ? "eye-off" : "eye" as any}
+          onRightIconPress={() => setShowPassword(!showPassword)}
+        />
+
+        {password.length > 0 && (
+          <View style={styles.requirementsContainer}>
+            {passwordChecks.map((check) => (
+              <View key={check.key} style={styles.requirementRow}>
+                <Text style={[
+                  styles.requirementIcon, 
+                  { color: check.passed ? colors.success : colors.sub }
+                ]}>
+                  {check.passed ? '✓' : '○'}
+                </Text>
+                <Text style={[
+                  styles.requirementLabel, 
+                  { color: check.passed ? colors.success : colors.sub }
+                ]}>
+                  {check.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
           
-              {password.length > 0 && (
-                <View style={styles.requirementsContainer}>
-                  {passwordChecks.map((check) => (
-                    <View key={check.key} style={styles.requirementRow}>
-                      <Text style={[
-                        styles.requirementIcon, 
-                        { color: check.passed ? colors.success : colors.sub }
-                      ]}>
-                        {check.passed ? '✓' : '○'}
-                      </Text>
-                      <Text style={[
-                        styles.requirementLabel, 
-                        { color: check.passed ? colors.success : colors.sub }
-                      ]}>
-                        {check.label}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-          
-          <TouchableOpacity 
-            style={[styles.button, isDisabled && styles.buttonDisabled]} 
-            onPress={handleRegister}
-            disabled={isDisabled}
-          >
-            <Text style={[styles.buttonText, isDisabled && styles.buttonTextDisabled]}>
-              {loading ? 'Criando...' : 'Criar conta'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.replace("/login")}>
-            <Text style={styles.linkText}>
-              Já tem conta? <Text style={styles.linkHighlight}>Entrar</Text>
-            </Text>
-          </TouchableOpacity>
-        </View>
-        </KeyboardAwareScrollView >
-    
-  </>  
-            
+        <TouchableOpacity 
+          style={[styles.button, isDisabled && styles.buttonDisabled]} 
+          onPress={handleRegister}
+          disabled={isDisabled}
+        >
+          <Text style={[styles.buttonText, isDisabled && styles.buttonTextDisabled]}>
+            {loading ? 'Criando...' : 'Criar conta'}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.replace("/login")}>
+          <Text style={styles.linkText}>
+            Já tem conta? <Text style={styles.linkHighlight}>Entrar</Text>
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAwareScrollView >       
   );
 }
 
@@ -181,7 +183,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   label: {
-    
     fontSize: 14,
     fontWeight: '500',
     marginBottom: 2,
