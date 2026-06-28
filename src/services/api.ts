@@ -1,6 +1,7 @@
 import { parseResponse } from './parseResponse';
 import { ApiError } from './api-error';
 
+
 export async function authFetch(
   url: string,
   options: RequestInit,
@@ -8,6 +9,7 @@ export async function authFetch(
   refreshAccessToken: () => Promise<string | null>,
   logout: () => Promise<void>
 ) {
+  
   let response = await fetch(url, {
     ...options,
     headers: {
@@ -15,6 +17,7 @@ export async function authFetch(
       Authorization: `Bearer ${accessToken}`,
     },
   });
+  
 
   if (response.status === 401) {
     const newToken = await refreshAccessToken();

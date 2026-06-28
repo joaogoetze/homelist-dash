@@ -31,7 +31,9 @@ export default function LoginScreen() {
             });
 
             const data = await parseResponse(response);
-            await login(data.accessToken, data.refreshToken);
+            console.log("data", data);
+            
+            await login(data.accessToken, data.refreshToken, data.userId);
 
             router.replace("/");
         } catch (error) {

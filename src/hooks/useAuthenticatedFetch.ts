@@ -4,7 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { authFetch } from '@/services/api';
 
 export function useAuthenticatedFetch() {
-  const { accessToken, refreshAccessToken, logout } = useAuth();
+  
+  const { accessToken, refreshAccessToken, logout } = useAuth(); 
 
   return useCallback(
     (url: string, options: RequestInit = {}) =>

@@ -7,6 +7,9 @@ import Toast, { BaseToast } from 'react-native-toast-message';
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { SQLiteProvider } from 'expo-sqlite';
+import { initializeDatabase } from '@/db/db';
+import { SyncProvider } from '@/services/sync';
 
 const toastConfig = {
   error: (props: any) => (
@@ -50,27 +53,33 @@ export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
-    <KeyboardProvider>
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthGate>
-          <Stack>
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="list/[id]"
-              options={{
-                headerShown: true,
-                headerBackTitle: 'Listas',
-                headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
-              }}
-            />
-          </Stack>
-        </AuthGate>
-        <Toast config={toastConfig} />
-        <StatusBar style="auto" />
-      </ThemeProvider>
-    </AuthProvider>
-    </KeyboardProvider>
+    <SQLiteProvider databaseName='myDatabase.db' onInit={initializeDatabase}>
+      
+      <KeyboardProvider>
+        <AuthProvider>
+          <SyncProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <AuthGate>
+              <Stack>
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="list/[id]"
+                  options={{
+                    headerShown: true,
+                    headerBackTitle: 'Listas',
+                    headerTintColor: colorScheme === 'dark' ? '#fff' : '#000',
+                  }}
+                />
+              </Stack>
+            </AuthGate>
+            <Toast config={toastConfig} />
+            <StatusBar style="auto" />
+          </ThemeProvider>
+          </SyncProvider>
+        </AuthProvider>
+      </KeyboardProvider>
+      
+    </SQLiteProvider>
   );
 }

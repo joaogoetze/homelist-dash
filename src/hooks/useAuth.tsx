@@ -7,9 +7,10 @@ type AuthContextType = {
   accessToken: string | null;
   refreshToken: string | null;
   loading: boolean;
-  login: (accessToken: string, refreshToken: string) => Promise<void>;
+  login: (accessToken: string, refreshToken: string, userId: number) => Promise<void>;
   refreshAccessToken: () => Promise<string | null>;
   logout: () => Promise<void>;
+  userId: number | null;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,41 +20,54 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   refreshAccessToken: async () => null,
   logout: async () => {},
+  userId: null
 });
 
-const ACCESS_TOKEN_KEY = 'access_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
+
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const refreshTokenRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<number | null>(null);
+
+  const ACCESS_TOKEN_KEY = 'access_token';
+  const REFRESH_TOKEN_KEY = 'refresh_token';
+  const USER_ID_KEY = 'user_id';
 
   useEffect(() => {
     loadTokens();
   }, []);
 
   async function loadTokens() {
+    console.log("Carregando tokens");
+    
     try {
       const storedAccessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
       const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
+      const storedUserId = await SecureStore.getItemAsync(USER_ID_KEY);
+      console.log("userId AAAAAA", storedUserId);
+      
 
       if (storedAccessToken) setAccessToken(storedAccessToken);
       if (storedRefreshToken) {
         setRefreshToken(storedRefreshToken);
         refreshTokenRef.current = storedRefreshToken;
       }
+      if(storedUserId) setUserId(Number(storedUserId))
     } finally {
       setLoading(false);
     }
   }
 
-  async function login(newAccessToken: string, newRefreshToken: string) {
+  async function login(newAccessToken: string, newRefreshToken: string, userId: number) {
     await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, newAccessToken);
     await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, newRefreshToken);
+    await SecureStore.setItemAsync(USER_ID_KEY, userId.toString());
     setAccessToken(newAccessToken);
     setRefreshToken(newRefreshToken);
+    setUserId(userId);
     refreshTokenRef.current = newRefreshToken;
   }
 
@@ -99,7 +113,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ accessToken, refreshToken, loading, login, logout, refreshAccessToken }}
+      value={{ 
+        accessToken, 
+        refreshToken, 
+        loading, 
+        login, 
+        logout,
+        refreshAccessToken,
+        userId
+      }}
     >
       {children}
     </AuthContext.Provider>

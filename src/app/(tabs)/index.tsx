@@ -1,5 +1,5 @@
   import { useRouter } from 'expo-router';
-  import { useCallback, useEffect, useState } from 'react';
+  import { use, useEffect, useState } from 'react';
   import {
     ActivityIndicator,
     FlatList,
@@ -13,35 +13,37 @@
     TouchableWithoutFeedback,
     View,
   } from 'react-native';
-  import { API_BASE } from '@/config/env';
-  import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
   import { useColors } from '@/hooks/useColors';
   import { useAuth } from '@/hooks/useAuth';
   import { handleError } from '@/services/errorHandler';
 
-  type List = {
-    id: number;
-    name: string;
-    owner_id: number;
-  };
+  import { 
+    useListDatabase,
+  } from '@/db/useListDatabase';
 
-  type ModalState = {mode: 'create' } | { mode: 'rename'; target: List} | { mode: 'delete'; target: List};
+  import { ListDatabase } from '@/types/types';
+
+  type ModalState = {mode: 'create' } | { mode: 'rename'; target: ListDatabase} | { mode: 'delete'; target: ListDatabase};
 
   export default function ListsScreen() {
-    const [lists, setLists] = useState<List[]>([]);
+    
+    const [lists, setLists] = useState<ListDatabase[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [openMenuId, setOpenMenuId] = useState<number | null>(null);
     const [modal, setModal] = useState<ModalState | null>(null);
     const [inputValue, setInputValue] = useState('');
     const router = useRouter();
-    const authenticatedFetch = useAuthenticatedFetch();
     const { colors } = useColors();
-    const { accessToken } = useAuth();
+    const { accessToken, userId } = useAuth();
+    const listDatabase = useListDatabase();
 
-    const fetchLists = useCallback(async () => {
+    // chama as listas do banco local e altera a o estados das listas no front
+    async function fetchLists() {
+      if(!userId) return;
       try {
-        const data = await authenticatedFetch(`${API_BASE}/lists`, { method: 'GET' });
+        
+        const data = await listDatabase.show(userId);
         setLists(data);
       } catch (error) {
         handleError(error);
@@ -49,60 +51,92 @@
         setLoading(false);
         setRefreshing(false);
       }
-    }, [authenticatedFetch]);
+    }
 
+    // atualiza a lista no banco local
+    async function update (id: number, name: string, sync_status: string) {
+      try {
+        await listDatabase.update({
+          id,
+          name,
+          sync_status
+        });
+      } catch (error) {
+        console.log("Erro", error);
+        handleError(error);
+      }
+    }
+
+    // cria a lista no banco local
+    async function create (name: string, sync_status: string) {
+      if (!userId) return;
+      const owner_id = userId;
+      try {
+        const list = await listDatabase.create({
+          name,
+          sync_status,
+          owner_id
+        });
+        return list;
+      } catch (error) {
+        console.log("Erro", error);
+        handleError(error);
+      }
+    }
+
+    // remove a lista do  banco local (coloca deleted_at)
+    async function remove(id: number) {
+      try {
+        await listDatabase.remove(id)
+      } catch (error) {
+        console.log("Erro", error);
+        handleError(error);
+      }
+    }
+
+    // faz o fetch das listas toda vez que a tela renderiza
     useEffect(() => {
       if (!accessToken) return;
       fetchLists();
-    }, [accessToken, fetchLists]);
+    }, [accessToken]);
 
     const onRefresh = () => { 
       setRefreshing(true); 
       fetchLists(); 
     };
 
-    const openDelete = (item: List) => {
+    const openDelete = (item: ListDatabase) => {
       setModal({ mode: 'delete', target: item });
+      setOpenMenuId(null);
+    };
+
+    const openRename = (item: ListDatabase) => {
+      setInputValue(item.name);
+      setModal({ mode: 'rename', target: item });
       setOpenMenuId(null);
     };
 
     const handleDelete = async () => {
       if (!modal || modal.mode !== 'delete') return;
       try {
-        await authenticatedFetch(`${API_BASE}/lists/${modal.target.id}`, { method: 'DELETE' });
-        setLists(prev => prev.filter(l => l.id !== modal.target.id));
+        await remove(modal.target.id);
+        fetchLists()
       } catch (error) {
         handleError(error);
       }
       setModal(null);
     };
 
-    const openRename = (item: List) => {
-      setInputValue(item.name);
-      setModal({ mode: 'rename', target: item });
-      setOpenMenuId(null);
-    };
-
     const handleSubmit = async () => {
       if (!modal || !inputValue.trim()) return;
       try {
         if (modal.mode === 'create') {
-          const created = await authenticatedFetch(`${API_BASE}/lists`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: inputValue.trim() }),
-          });
-        
-          setLists(prev => [...prev, created]);
+          await create(inputValue.trim(), "created")
+          fetchLists();
         } else {
-          await authenticatedFetch(`${API_BASE}/lists/${modal.target.id}/name`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: inputValue.trim() }),
-          });
-          setLists(prev =>
-            prev.map(l => l.id === modal.target.id ? { ...l, name: inputValue.trim() } : l)
-          );
+          console.log("Modal target", modal.target); 
+          await update(modal.target.id, inputValue.trim(), "updated");
+          fetchLists();
         }
         setModal(null);
         setInputValue('');
