@@ -166,7 +166,7 @@
                 style={styles.cardContent}
                 onPress={() => {
                   setOpenMenuId(null);
-                  router.push({ pathname: '/list/[id]', params: { id: item.id, name: item.name } });
+                  router.push({ pathname: '/list/[id]', params: { id: item.id, name: item.name, server_id: item.server_id } });
                 }}
                 activeOpacity={0.7}
               >

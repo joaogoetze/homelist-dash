@@ -1,4 +1,5 @@
 import { useListDatabase } from '@/db/useListDatabase';
+import { useItemDatabase } from '@/db/useItemDatabase';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { API_BASE } from '@/config/env';
 import { useAuth } from '@/hooks/useAuth';
@@ -8,34 +9,65 @@ export function useSync() {
 
     const authenticatedFetch = useAuthenticatedFetch();
     const listDatabase = useListDatabase();
+    const itemDatabase = useItemDatabase();
     const { userId } = useAuth();
 
     async function syncLists() {
-        console.log("Fazendo sync");
-        
         await pushLocalChanges();
         await pullRemoteChanges();
+        await pushItemChanges();
+        await pullItemRemoteChanges();
     }
 
-    async function pushLocalChanges() {
-        if(!userId) {
-            console.log("Sem user");      
+    async function pushItemChanges() {
+        if(!userId) {   
             return;
         }
 
-        // Pega os dados não sincados locais
+        const unsyncedItems = await itemDatabase.getUnsyncData(userId);
+        
+        if (unsyncedItems.length < 1) {
+            return;
+        }
+
+        try {
+        const changes = await authenticatedFetch(`${API_BASE}/items/sync/push`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ unsyncedItems })
+        });
+        
+        for (const element of changes) {
+            const listId = await itemDatabase.getLocalListId(element.list_id);
+
+            const data = { 
+                id: element.local_id,
+                name: element.name,
+                checked: element.checked,
+                list_id: listId,
+                sync_status: "synced",
+                server_id: element.id
+            }
+            await itemDatabase.update(data);
+        }
+            
+        } catch (error){
+            handleError(error);
+        }
+    }
+
+    async function pushLocalChanges() {
+        
+        if(!userId) {   
+            return;
+        }
         
         const unsynced = await listDatabase.getUnsyncData(userId);
 
         if (unsynced.length < 1) {
-            console.log("Nada para sincronizar");
             return;
         }
 
-        console.log("Itens não sincados:", unsynced);
-
-        // Manda para API
-        
         try {
             const changes = await authenticatedFetch(`${API_BASE}/lists/sync/push`, { 
             method: 'PUT',
@@ -43,56 +75,74 @@ export function useSync() {
             body: JSON.stringify({unsynced}),
         });
 
-        changes.forEach(element => {
-            // console.log("element", element);
-            //ver de criar um dto
+        for (const element of changes) {                        
+            
             const data = { 
                 id: element.local_id,
                 name: element.name,
                 sync_status: "synced",
                 server_id: element.id
             }
-            listDatabase.update(data);
-        });
+            await listDatabase.update(data);
+        }
+
         } catch (error){
             handleError(error);
         }
+    }
+
+    async function pullItemRemoteChanges() {
         
+        if(!userId) {
+            return;
+        }
+
+        const datadosguri = await itemDatabase.getLastSyncDate();
         
-        // Atualizar status no banco local
+        let a:any = datadosguri[0];
+        const biru = new Date(a.last_sync_at);
+        
+        biru.setHours(biru.getHours());
+        
+        try {
+            
+            const changes = await authenticatedFetch(`${API_BASE}/items/sync/pull/${userId}/${biru}` , {
+                method: 'GET',
+            });
 
-
-        // FAZER TRATANENTO COM ERROR HANDLER 
-
+            for (const element of changes) {
+                const listId = await itemDatabase.getLocalListId(element.list_id);
+                const data = {
+                id: element.local_id,
+                name: element.name,
+                checked: element.checked,
+                sync_status: "synced",
+                server_id: element.id,
+                list_id: listId
+                }
+                await itemDatabase.upsert(data);
+                
+            }
+        
+                await listDatabase.updateSyncDate();
+            
+        } catch (error) {
+            console.error("Erro", error);
+            handleError(error);
+        }
     }
 
     async function pullRemoteChanges() {
-        // buscar da API
-        // atualizar no banco local
-
+        
         if(!userId) {
-            console.log("Sem user");      
             return;
         }
 
         const datadosguri = await listDatabase.getLastSyncDate();
-        //console.log("data dos gugu", datadosguri, "tipo: ", typeof(datadosguri));
         let a:any = datadosguri[0];
-        //console.log("a", a.last_sync_at, "tipo:", typeof(a.last_sync_at));
         const biru = new Date(a.last_sync_at);
-        console.log("biruuu", biru);
-        
-        
-        
-        
-
-        // const date = new Date();
-        // console.log("date", date, "tipo:", typeof(date));
-        
-        //biru.setMinutes(biru.getMinutes() - 5);
-        biru.setHours(biru.getHours() - 3);
-        //console.log("data formatada", date);
-         
+    
+        biru.setHours(biru.getHours());
 
         try {
             
@@ -100,32 +150,26 @@ export function useSync() {
                 method: 'GET',
             });
 
-            // console.log("chahaha", changes);
-
-            changes.forEach(element => {
-                const data = {
+            for (const element of changes) {
+                                const data = {
                 id: element.local_id,
                 name: element.name,
                 owner_ids: element.owner_ids,
                 sync_status: "synced",
                 server_id: element.id
                 }
-                listDatabase.upsert(data);
-                listDatabase.updateSyncDate();
-            })
+                await listDatabase.upsert(data);
+                
+            }
+            await listDatabase.updateSyncDate();
             
         } catch (error) {
-            console.log("Erro", error);
-            
+            console.error("Erro", error);
             handleError(error);
         }
-
     }
 
     return {
         syncLists,
-    };
-
-
-    
+    };   
 }

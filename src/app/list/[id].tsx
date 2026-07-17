@@ -10,132 +10,133 @@ import {
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
-  InteractionManager,
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
-import { API_BASE } from '@/config/env';
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { useColors } from '@/hooks/useColors';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useItemDatabase } from '@/db/useItemDatabase';
+import { API_BASE } from '@/config/env';
+import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleError } from '@/services/errorHandler';
-
-type ApiItem = {
-  id: number;
-  name: string;
-  list_id: number;
-  checked: boolean;
-};
+import { ItemDatabase } from '@/types/types';
 
 type Item = {
-  localId: string;
-  dbId?: number;
+  id: number;
+  serverId: number | null;
   text: string;
   checked: boolean;
-  isNew: boolean;
 };
 
 export default function ListDetailScreen() {
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
+  const [serverId, setServerId] = useState<number | null>(null);
   const [showShare, setShowShare] = useState(false);
   const [email, setEmail] = useState('');
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { id, name, server_id } = useLocalSearchParams<{ id: string; name: string, server_id: string }>();
   const navigation = useNavigation();
-  const authenticatedFetch = useAuthenticatedFetch();
   const { colors } = useColors();
-  
+  const itemDb = useItemDatabase();
+  const authenticatedFetch = useAuthenticatedFetch();
+
+  const[newItemText, setNewItemText] = useState('');
+  const newItemInputRef = useRef<TextInput>(null);
+
   const openShareModal = () => {
     setShowShare(true);
   };
 
-  const inputRefs = useRef<Record<string, TextInput | null>>({});
+  const inputRefs = useRef<Record<number, TextInput | null>>({});
   const flatListRef = useRef<FlatList>(null);
 
   useLayoutEffect(() => {
+    
     navigation.setOptions({ title: name || 'Lista',
       headerRight: () => (
-        <TouchableOpacity onPress={openShareModal}>
-          <Text style={{ marginRight: 12, fontSize: 18 }}>
+        <TouchableOpacity
+          onPress={openShareModal}
+          disabled={!serverId}
+          style={{ opacity: serverId ? 1 : 0.4 }}
+        >
+        <Text style={{ marginRight: 12, fontSize: 18 }}>
             📤
-          </Text>
+        </Text>
         </TouchableOpacity>
       )
     });
-  }, [navigation, name]);
+  }, [navigation, name, serverId]);
 
   useEffect(() => {
-    const fetchItems = async () => {
+    const loadItems = async () => {
       try {
-        const data: ApiItem[] = await authenticatedFetch(`${API_BASE}/lists/${id}/items`, {
-          method: 'GET',
-        });
-        //const data: ApiItem[] = await parseResponse(response);
-
-        const mapped: Item[] = data.map((item) => ({
-          localId: `db-${item.id}`,
-          dbId: item.id,
+        const list = await itemDb.getById(Number(id));
+        console.log("list", list);
+        
+        setServerId(list?.server_id ?? null);
+        const data = await itemDb.show(Number(id));
+        const mapped: Item[] = data.map((item: ItemDatabase) => ({
+          id: item.id,
+          serverId: item.server_id,
           text: item.name,
-          checked: item.checked,
-          isNew: false,
+          checked: !!item.checked,
         }));
-
         setItems(mapped);
       } catch (error) {
         handleError(error);
-        setItems([{ localId: `local-${Date.now()}`, text: '', checked: false, isNew: true }]);
       } finally {
         setLoading(false);
       }
     };
-    fetchItems();
-  }, [id, authenticatedFetch]);
+    loadItems();
+  }, [id]);
 
-  useEffect(() => {
-    if (!loading && items.length === 0) {
-      setItems([{ localId: `local-${Date.now()}`, text: '', checked: false, isNew: true }]);
-    }
-  }, [loading, items.length]);
 
-  const toggleCheck = (itemId: string) => {
-    const item = items.find(i => i.localId === itemId);
- 
-    if (!item) return;
+  const createItem = async () => {
+    if (!newItemText.trim()) return;
 
-    if (item.dbId) {
-      updateCheckItemToApi(item.dbId, !item.checked);
-    }
-    
-    setItems((prev) =>
-      prev.map((i) => (i.localId === itemId ? { ...i, checked: !i.checked } : i))
-    );
-  };
-
-  const updateText = (itemId: string, text: string) => {
-    setItems((prev) =>
-      prev.map((i) => (i.localId === itemId ? { ...i, text } : i))
-    );
-  };
-
-  const saveItemToApi = async (item: Item) => {
-    if (!item.text.trim()) return;
-
-    const created = await authenticatedFetch(`${API_BASE}/items`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        listId: Number(id),
-        name: item.text.trim(),
-      }),
+    const created = await itemDb.create({
+        name: newItemText.trim(),
+        list_id: Number(id),
+        sync_status: "created",
     });
 
+    setItems(prev => [
+        ...prev,
+        {
+            id: created.id,
+            serverId: null,
+            text: created.name,
+            checked: false,
+        },
+    ]);
+
+    setNewItemText("");
+
+    requestAnimationFrame(() => {
+        newItemInputRef.current?.focus();
+    });
+};
+
+  const toggleCheck = async (itemId: number) => {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
     setItems(prev =>
-      prev.map(i =>
-        i.localId === item.localId
-          ? { ...i, dbId: created.id, isNew: false }
-          : i
-      )
+      prev.map(i => (i.id === itemId ? { ...i, checked: !i.checked } : i))
+    );
+
+    await itemDb.update({
+      id: itemId, 
+      checked: !item.checked,
+      sync_status: "updated"
+    });
+  };
+
+  const updateText = (itemId: number, text: string) => {
+    setItems(prev =>
+      prev.map(i => (i.id === itemId ? { ...i, text } : i))
     );
   };
 
@@ -143,7 +144,7 @@ export default function ListDetailScreen() {
     if (!email.trim()) return;
 
     try {
-      await authenticatedFetch(`${API_BASE}/${Number(id)}/users`, {
+      await authenticatedFetch(`${API_BASE}/lists/${Number(server_id)}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -153,112 +154,41 @@ export default function ListDetailScreen() {
       setShowShare(false);
 
     } catch (error) {
+      
       handleError(error);
     }
   };
 
-  const updateItemToApi = async (item: Item) => {
-    if (!item.dbId) return;
+  const updateItem = async (item: Item) => {
+    if (!item.text.trim()) return;
 
-    try {
-      await authenticatedFetch(`${API_BASE}/items/${item.dbId}/name`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: item.text,
-      }),
-    });
-
-    } catch(error) {
-      handleError(error)
-    }
+    await itemDb.update({
+      id: item.id,
+      name: item.text,
+  });
   };
 
-  const deleteItemFromApi = async (itemId: number) => {
-    if (!itemId) return;
-
-    try {
-      await authenticatedFetch(`${API_BASE}/items/${itemId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-    } catch (error) {
-      handleError(error)
-    }
+  const handleDelete = async (item: Item) => {
+    setItems(prev => prev.filter(i => i.id !== item.id));
+    await itemDb.remove(item.id);
   };
 
-  const handleDelete = (item: Item) => {
-    setItems(prev => prev.filter(i => i.localId !== item.localId));
-
-    if (item.dbId) {
-      deleteItemFromApi(item.dbId);
-    }
-  };
-
-  const updateCheckItemToApi = async (itemId: number, checked: boolean) => {
-    await authenticatedFetch(`${API_BASE}/items/${Number(itemId)}/check`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ checked }),
-    }).catch((error) => handleError(error));
-  };
-
-  const addItemAfter = (index: number) => {
-    const currentItem = items[index];
-    
-    if (currentItem.text.trim()) {
-      if (currentItem.isNew) {
-        saveItemToApi(currentItem);
-      } else {
-        updateItemToApi(currentItem);
-      }
-    }
-    
-    const newItem: Item = {
-      localId: `local-${Date.now()}`,
-      text: '',
-      checked: false,
-      isNew: true,
-    };
-
-    setItems((prev) => {
-      const next = [...prev];
-      next.splice(index + 1, 0, newItem);
-      return next;
-    });
-
-    requestAnimationFrame(() => {
-      flatListRef.current?.scrollToIndex({
-        index: index + 1,
-        animated: true,
-        viewPosition: 0.5,
-      });
-
-      InteractionManager.runAfterInteractions(() => {
-        inputRefs.current[newItem.localId]?.focus();
-      });
-    });
-  };
-
-  const handleKeyPress = (e: any, itemId: string, index: number) => {
+  const handleKeyPress = (e: any, itemId: number, index: number) => {
     if (e.nativeEvent.key === 'Backspace') {
-      const currentItem = items.find((i) => i.localId === itemId);
+      const currentItem = items.find(i => i.id === itemId);
       if (currentItem?.text === '' && items.length > 1) {
-        setItems((prev) => prev.filter((i) => i.localId !== itemId));
+        setItems(prev => prev.filter(i => i.id !== itemId));
         const prevItem = items[index - 1];
         if (prevItem) {
           setTimeout(() => {
-            inputRefs.current[prevItem.localId]?.focus();
+            inputRefs.current[prevItem.id]?.focus();
           }, 50);
         }
       }
     }
   };
 
-  const checkedCount = items.filter((i) => i.checked).length;
+  const checkedCount = items.filter(i => i.checked).length;
 
   if (loading) {
     return (
@@ -292,7 +222,7 @@ export default function ListDetailScreen() {
             minIndexForVisible: 0,
           }}
           data={items}
-          keyExtractor={(item) => item.localId}
+          keyExtractor={(item) => String(item.id)}
           style={[styles.list, { backgroundColor: colors.card }]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -311,9 +241,7 @@ export default function ListDetailScreen() {
               ]}
             >
               <TouchableOpacity
-                onPress={() => {
-                  toggleCheck(item.localId);
-                }}
+                onPress={() => toggleCheck(item.id)}
                 style={[
                   styles.checkbox,
                   item.checked && { backgroundColor: colors.check, borderColor: colors.check },
@@ -327,7 +255,7 @@ export default function ListDetailScreen() {
               </TouchableOpacity>
               <TextInput
                 ref={(ref) => {
-                  inputRefs.current[item.localId] = ref;
+                  inputRefs.current[item.id] = ref;
                 }}
                 onFocus={() => {
                   flatListRef.current?.scrollToIndex({
@@ -336,10 +264,11 @@ export default function ListDetailScreen() {
                     viewPosition: 0.5,
                   });
                 }}
+                onBlur={() => updateItem(item)}
                 value={item.text}
-                onChangeText={(text) => updateText(item.localId, text)}
-                onSubmitEditing={() => addItemAfter(index)}
-                onKeyPress={(e) => handleKeyPress(e, item.localId, index)}
+                onChangeText={(text) => updateText(item.id, text)}
+                //onSubmitEditing={() => addItemAfter(index)}
+                onKeyPress={(e) => handleKeyPress(e, item.id, index)}
                 blurOnSubmit={false}
                 returnKeyType="next"
                 placeholder="Item da lista..."
@@ -360,15 +289,32 @@ export default function ListDetailScreen() {
             </View>
           )}
 
-          ListFooterComponent={() => (
-            <TouchableOpacity
-              style={[styles.addButton, { borderTopColor: colors.border }]}
-              onPress={() => addItemAfter(items.length - 1)}
-            >
-              <Text style={[styles.addIcon, { color: colors.accent }]}>+</Text>
-              <Text style={[styles.addText, { color: colors.sub }]}>Novo item</Text>
-            </TouchableOpacity>
-          )}
+          ListFooterComponent={
+  <View
+    style={[
+      styles.addButton,
+      { borderTopColor: colors.border },
+    ]}
+  >
+    <Text style={[styles.addIcon, { color: colors.accent }]}>
+      +
+    </Text>
+
+    <TextInput
+      ref={newItemInputRef}
+      value={newItemText}
+      onChangeText={setNewItemText}
+      onSubmitEditing={createItem}
+      placeholder="Novo item..."
+      placeholderTextColor={colors.sub}
+      returnKeyType="done"
+      style={[
+        styles.input,
+        { color: colors.text }
+      ]}
+    />
+  </View>
+}
         />
         
         {showShare && (

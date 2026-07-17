@@ -18,10 +18,12 @@ export function useListDatabase() {
     }
 
     async function updateSyncDate() {
+        const now = new Date().toISOString();
         //console.log("Update da sync");
         
         const result = await database.runAsync(
-            'INSERT INTO sync_metadata (id, last_sync_at) VALUES (1, CURRENT_TIMESTAMP) ON CONFLICT (id) DO UPDATE SET last_sync_at = CURRENT_TIMESTAMP'
+            'INSERT INTO sync_metadata (id, last_sync_at) VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET last_sync_at = excluded.last_sync_at',
+            now
         );
         
         
@@ -31,7 +33,11 @@ export function useListDatabase() {
         //console.log("data", data);
         
         const result = await database.runAsync(
-            'INSERT INTO lists (server_id, name, owner_ids, sync_status) VALUES (?, ?, ?, ?) ON CONFLICT (server_id) DO UPDATE SET name = excluded.name, owner_ids = excluded.owner_ids, sync_status = "synced"',
+            `INSERT INTO lists 
+            (server_id, name, owner_ids, sync_status) 
+            VALUES (?, ?, ?, ?) 
+            ON CONFLICT (server_id) 
+            DO UPDATE SET name = excluded.name, owner_ids = excluded.owner_ids, sync_status = "synced"`     ,
             data.server_id,
             data.name,
             JSON.stringify(data.owner_ids),
@@ -49,24 +55,16 @@ export function useListDatabase() {
 
     async function update(data: Omit<ListDatabase, "owner_id">) {
         
-        
-        // const statement = await database.prepareAsync(
-        //     'UPDATE lists SET server_id = $server_id, name = $name, sync_status = $sync_status, updated_at = CURRENT_TIMESTAMP WHERE id = $id'
-        // )
-        
         const { sql, params } = buildUpdateQuery("lists", data.id, {
             server_id: data.server_id,
             name: data.name,
             sync_status: data.sync_status
         });
 
-        
-        
         const statement = await database.prepareAsync(sql);
 
         try {
             await statement.executeAsync(params);
-            //await statement.executeAsync({ $server_id: data.server_id || null, $name: data.name, $sync_status: data.sync_status || 'updated', $id: data.id, })
         } catch (error) {
             throw error
         } finally {
@@ -117,7 +115,6 @@ export function useListDatabase() {
         try {
             const date = await database.getAllAsync("SELECT last_sync_at FROM sync_metadata WHERE id = 1");
             
-            
             return date;
         } catch(error) {
             throw error;
@@ -133,14 +130,10 @@ export function useListDatabase() {
         const params: Record<string, any> = { $id: id };
 
         for (const [key, value] of Object.entries(data)) {
-            console.log("key", key);
-            console.log("value", value);
-            
             
             if (value !== undefined) {
                 params[`$${key}`] = value;
                 fields.push(`${key} = $${key}`)
-                //fields.push(`${key} = $"${value}"`)
             }
         }
 

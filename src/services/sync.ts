@@ -12,7 +12,7 @@ export function SyncProvider({ children } : { children: React.ReactNode}) {
 
     useEffect(()  => {
 
-        console.log("Provider de rede ativo");
+        //console.log("Provider de rede ativo");
 
         if (loading) return;
 
@@ -37,7 +37,7 @@ export function SyncProvider({ children } : { children: React.ReactNode}) {
                 const state = await Network.getNetworkStateAsync();
 
                 if (state.isConnected) {
-                    console.log("tem rede");
+                    //console.log("tem rede");
                     
                     await syncLists();
                 } else {
