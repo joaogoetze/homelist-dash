@@ -1,64 +1,83 @@
-import { useEffect } from 'react';
-import * as Network from 'expo-network';
-import { useSync } from '@/hooks/useSync';
 import { useAuth } from '@/hooks/useAuth';
+import { useSync } from '@/hooks/useSync';
+import * as Network from 'expo-network';
+import { useEffect, useRef } from 'react';
 
-export function SyncProvider({ children } : { children: React.ReactNode}) {
+export function SyncProvider({ children }: { children: React.ReactNode }) {
 
-    // Ver se vale a pena adicionar um listener, ser mais dinâmica a sincronização quando usuário conectar na rede
-    
     const { syncLists } = useSync();
     const { userId, loading } = useAuth();
 
-    useEffect(()  => {
+    const syncListsRef = useRef(syncLists);
 
-        //console.log("Provider de rede ativo");
+    useEffect(() => {
+        syncListsRef.current = syncLists;
+    }, [syncLists]);
 
-        if (loading) return;
-
-        if (!userId) return;
-        
+    useEffect(() => {
+        if (loading || !userId) return;
 
         let interval: NodeJS.Timeout | null = null;
+        let isCurrentlyConnected = false;
 
-        async function startSyncTimer() {
-            
-            const networkState = await Network.getNetworkStateAsync();
+        const startSyncing = async () => {
+            if (interval) return;
 
-            if (!networkState.isConnected) {
-                console.log("Não tem net");
-                return;
+            try {
+                await syncListsRef.current();
+            } catch (err) {
+                console.log('Error on initial sync', err);
             }
 
-            await syncLists();
-
             interval = setInterval(async () => {
-                
-                const state = await Network.getNetworkStateAsync();
-
-                if (state.isConnected) {
-                    //console.log("tem rede");
-                    
-                    await syncLists();
-                } else {
-                    console.log("Not rede pae");
+                console.log("Tem rede, sincronizando...");
+                try {
+                    await syncListsRef.current();
+                } catch (err) {
+                    console.log('Error on sync interval', err);
                 }
-                
-                
+            }, 60_000);
+        };
 
-            }, 10_000)
-        }
-
-        startSyncTimer();
-
-        return () => {
+        const stopSyncing = () => {
             if (interval) {
                 clearInterval(interval);
+                interval = null;
+                console.log("Sem rede, parando de sincronizar");
             }
         };
 
+        const handleNetworkChange = (state: Network.NetworkState) => {
+            if (state.isConnected && state.isInternetReachable !== false) {
+                if (!isCurrentlyConnected) {
+                    isCurrentlyConnected = true;
+                    startSyncing();
+                }
+            } else {
+                if (isCurrentlyConnected) {
+                    isCurrentlyConnected = false;
+                    stopSyncing();
+                }
+            }
+        };
+
+        // Verifica estado inicial logo ao abrir/logar
+        Network.getNetworkStateAsync().then(state => {
+            if (state.isConnected && state.isInternetReachable !== false) {
+                isCurrentlyConnected = true;
+                startSyncing();
+            }
+        });
+
+        // Monitora as mudanças de rede por eventos
+        const subscription = Network.addNetworkStateListener(handleNetworkChange);
+
+        return () => {
+            subscription.remove();
+            stopSyncing();
+        };
 
     }, [userId, loading]);
-    
-    return children; 
+
+    return children;
 }

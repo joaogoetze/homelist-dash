@@ -8,8 +8,8 @@ export async function parseResponse(response: Response) {
     } catch {}
 
     if (!response.ok) {
-        console.log("response", response);
-        
+        console.log("Erro", response);
+
         throw new ApiError(
             data?.message || 'Ocorreu um erro inesperado',
             response.status,

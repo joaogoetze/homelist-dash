@@ -1,7 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 
 export async function initializeDatabase(database: SQLite.SQLiteDatabase) {
-    console.log("inicializando banco de dados local");
     
     await database.execAsync(`
 
@@ -9,19 +8,15 @@ export async function initializeDatabase(database: SQLite.SQLiteDatabase) {
             id INTEGER PRIMARY KEY CHECK (id = 1),
             last_sync_at DATETIME
         );
-    
 
         CREATE TABLE IF NOT EXISTS lists (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            server_id INTEGER UNIQUE,
-            
+            server_id INTEGER UNIQUE,  
             name TEXT NOT NULL,
             owner_ids TEXT,
-            
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME,
             deleted_at DATETIME,
-            
             sync_status TEXT NOT NULL
         );
         

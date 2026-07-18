@@ -41,13 +41,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function loadTokens() {
-    console.log("Carregando tokens");
     
     try {
       const storedAccessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
       const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
       const storedUserId = await SecureStore.getItemAsync(USER_ID_KEY);
-      console.log("userId AAAAAA", storedUserId);
       
 
       if (storedAccessToken) setAccessToken(storedAccessToken);

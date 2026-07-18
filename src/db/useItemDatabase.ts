@@ -1,5 +1,6 @@
 import { useSQLiteContext } from "expo-sqlite";
 import { ItemDatabase } from "@/types/types";
+import { buildUpdateQuery } from "@/utils/utils";
 
 export function useItemDatabase() {
     const database = useSQLiteContext()
@@ -62,13 +63,11 @@ export function useItemDatabase() {
             FROM lists
             WHERE server_id = ?
             `, serverId);
-            console.log("result", result[0].id);
             
             return result[0].id;
     }
 
     async function upsert(data: ItemDatabase) {
-        console.log("data", data);
         
         const result = await database.runAsync(
             `INSERT INTO items (server_id, list_id, name, checked, sync_status)
@@ -92,7 +91,6 @@ export function useItemDatabase() {
     }
 
     async function getById(id: number) {
-        console.log("id", id);
         
     return await database.getFirstAsync<{
         id: number;
@@ -136,33 +134,11 @@ export function useItemDatabase() {
         return response;
     }
 
-    async function getLastSyncDate() {
+    async function getLastSyncDate(): Promise<string> {
         const date = await database.getAllAsync<{ last_sync_at: string }>(
             "SELECT last_sync_at FROM sync_metadata WHERE id = 1"
         );
-        return date;
-    }
-
-    function buildUpdateQuery(
-        table: string,
-        id: number,
-        data: Record<string, any>
-    ) {
-        const fields = [];
-        const params: Record<string, any> = { $id: id };
-
-        for (const [key, value] of Object.entries(data)) {
-            
-            if (value !== undefined) {
-                params[`$${key}`] = value;
-                fields.push(`${key} = $${key}`)
-            }
-        }
-
-        return {
-            sql: `UPDATE ${table} SET ${fields.join(", ")} WHERE id = $id`,
-            params,
-        };
+        return date[0].last_sync_at;
     }
 
     return { create, show, update, remove, upsert, getUnsyncData, getLastSyncDate, updateSyncDate, getLocalListId, getById }
