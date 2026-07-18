@@ -17,13 +17,11 @@ const AuthContext = createContext<AuthContextType>({
   accessToken: null,
   refreshToken: null,
   loading: true,
-  login: async () => {},
+  login: async () => { },
   refreshAccessToken: async () => null,
-  logout: async () => {},
+  logout: async () => { },
   userId: null
 });
-
-
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -41,19 +39,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   async function loadTokens() {
-    
     try {
       const storedAccessToken = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
       const storedRefreshToken = await SecureStore.getItemAsync(REFRESH_TOKEN_KEY);
       const storedUserId = await SecureStore.getItemAsync(USER_ID_KEY);
-      
 
       if (storedAccessToken) setAccessToken(storedAccessToken);
       if (storedRefreshToken) {
         setRefreshToken(storedRefreshToken);
         refreshTokenRef.current = storedRefreshToken;
       }
-      if(storedUserId) setUserId(Number(storedUserId))
+      if (storedUserId) setUserId(Number(storedUserId))
     } finally {
       setLoading(false);
     }
@@ -72,8 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function logout() {
     await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
     await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+    await SecureStore.deleteItemAsync(USER_ID_KEY);
     setAccessToken(null);
     setRefreshToken(null);
+    setUserId(null);
     refreshTokenRef.current = null;
   }
 
@@ -111,11 +109,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ 
-        accessToken, 
-        refreshToken, 
-        loading, 
-        login, 
+      value={{
+        accessToken,
+        refreshToken,
+        loading,
+        login,
         logout,
         refreshAccessToken,
         userId

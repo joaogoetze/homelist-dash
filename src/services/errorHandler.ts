@@ -9,14 +9,14 @@ export function handleError(error: unknown) {
         Toast.show({
           type: 'error',
           text1: 'Dados inválidos',
-          text2: error.message, 
+          text2: error.message,
         });
         return;
-      
+
       case 401:
         Toast.show({
           type: 'error',
-          text1: 'Sessão expirada',
+          text1: 'Erro de autenticação',
           text2: error.message,
         });
         return;
@@ -30,6 +30,8 @@ export function handleError(error: unknown) {
         return;
     }
   }
+
+  console.log("Erro", error);
 
   Toast.show({
     type: 'error',

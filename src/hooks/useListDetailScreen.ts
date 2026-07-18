@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useItemDatabase } from '@/db/useItemDatabase';
+import { useListDatabase } from '@/db/useListDatabase';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { handleError } from '@/services/errorHandler';
 import { ItemDatabase } from '@/types/types';
@@ -15,13 +16,14 @@ export function useListDetailScreen(id: string, serverIdParam?: string) {
   const [newItemText, setNewItemText] = useState('');
   
   const itemDb = useItemDatabase();
+  const listDb = useListDatabase();
   const authenticatedFetch = useAuthenticatedFetch();
 
   useEffect(() => {
     const loadItems = async () => {
       try {
         const listId = Number(id);
-        const list = await itemDb.getById(listId);
+        const list = await listDb.getById(listId);
         
         setServerId(list?.server_id ?? null);
         const data = await itemDb.show(listId);

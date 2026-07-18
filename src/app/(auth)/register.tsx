@@ -72,7 +72,8 @@ export default function RegisterScreen() {
       });
 
       const data = await parseResponse(response);
-      await login(data.accessToken, data.refreshToken);
+
+      await login(data.accessToken, data.refreshToken, data.userId);
       
       router.replace("/");
     } catch (error) {

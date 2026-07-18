@@ -1,6 +1,7 @@
 import { API_BASE } from '@/config/env';
 import { useListDatabase } from '@/db/useListDatabase';
 import { useItemDatabase } from '@/db/useItemDatabase';
+import { useSyncDatabase } from '@/db/useSyncDatabase';
 import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { useAuth } from '@/hooks/useAuth';
 import { handleError } from '@/services/errorHandler';
@@ -10,6 +11,7 @@ export function useSync() {
     const authenticatedFetch = useAuthenticatedFetch();
     const listDatabase = useListDatabase();
     const itemDatabase = useItemDatabase();
+    const syncDatabase = useSyncDatabase();
     const { userId } = useAuth();
 
     async function syncLists() {
@@ -17,6 +19,7 @@ export function useSync() {
         await pullListsRemoteChanges();
         await pushItemChanges();
         await pullItemRemoteChanges();
+        await syncDatabase.updateSyncDate();
     }
 
     async function pushListsLocalChanges() {
@@ -53,8 +56,7 @@ export function useSync() {
         
         if(!userId) return;
 
-        const lastSyncDate = await listDatabase.getLastSyncDate();
-        const date = new Date(lastSyncDate[0]);
+        const date = await syncDatabase.getLastSyncDate();
 
         try {
             const changes = await authenticatedFetch(`${API_BASE}/lists/sync/pull/${date}` , {
@@ -71,7 +73,6 @@ export function useSync() {
                 }
                 await listDatabase.upsert(data);
             }
-            await listDatabase.updateSyncDate();
             
         } catch (error) {
             handleError(error);
@@ -94,8 +95,8 @@ export function useSync() {
             });
         
             for (const element of changes) {
-                const listId = await itemDatabase.getLocalListId(element.list_id);
-                const data = { 
+                const listId = await listDatabase.getLocalListId(element.list_id);
+                const data = {
                     id: element.local_id,
                     name: element.name,
                     checked: element.checked,
@@ -114,8 +115,7 @@ export function useSync() {
     async function pullItemRemoteChanges() {
         if(!userId) return;
 
-        const lastSyncDate = await itemDatabase.getLastSyncDate();
-        const date = new Date(lastSyncDate[0]);
+        const date = await syncDatabase.getLastSyncDate();
         
         try {
             const changes = await authenticatedFetch(`${API_BASE}/items/sync/pull/${date}` , {
@@ -123,7 +123,7 @@ export function useSync() {
             });
 
             for (const element of changes) {
-                const listId = await itemDatabase.getLocalListId(element.list_id);
+                const listId = await listDatabase.getLocalListId(element.list_id);
                 const data = {
                     id: element.local_id,
                     name: element.name,
@@ -134,7 +134,6 @@ export function useSync() {
                 }
                 await itemDatabase.upsert(data);
             }
-            await listDatabase.updateSyncDate();
             
         } catch (error) {
             handleError(error);

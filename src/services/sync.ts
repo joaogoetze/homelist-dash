@@ -26,28 +26,35 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
             try {
                 await syncListsRef.current();
             } catch (err) {
-                console.log('Error on initial sync', err);
+                console.log('Erro ao iniciar sincronização', err);
             }
 
             interval = setInterval(async () => {
-                console.log("Tem rede, sincronizando...");
+                console.log("Rede disponível, sincronizando...");
                 try {
                     await syncListsRef.current();
                 } catch (err) {
-                    console.log('Error on sync interval', err);
+                    console.log('Erro na sincronização', err);
                 }
-            }, 60_000);
+            }, 30_000);
         };
 
         const stopSyncing = () => {
             if (interval) {
                 clearInterval(interval);
                 interval = null;
-                console.log("Sem rede, parando de sincronizar");
+                console.log("Rede indisponível, parando de sincronizar");
             }
         };
 
         const handleNetworkChange = (state: Network.NetworkState) => {
+
+            console.log("Evento de rede:", {
+                isConnected: state.isConnected,
+                isInternetReachable: state.isInternetReachable,
+                type: state.type,
+            });
+
             if (state.isConnected && state.isInternetReachable !== false) {
                 if (!isCurrentlyConnected) {
                     isCurrentlyConnected = true;
@@ -63,7 +70,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
         // Verifica estado inicial logo ao abrir/logar
         Network.getNetworkStateAsync().then(state => {
+            console.log("Verificando rede ao logar");
+            
             if (state.isConnected && state.isInternetReachable !== false) {
+                console.log("Rede disponível");
+                
                 isCurrentlyConnected = true;
                 startSyncing();
             }

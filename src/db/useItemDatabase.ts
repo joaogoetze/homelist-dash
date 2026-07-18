@@ -3,7 +3,16 @@ import { ItemDatabase } from "@/types/types";
 import { buildUpdateQuery } from "@/utils/utils";
 
 export function useItemDatabase() {
-    const database = useSQLiteContext()
+    const database = useSQLiteContext();
+
+    async function show(listId: number) {
+        const response = await database.getAllAsync<ItemDatabase>(
+            `SELECT * FROM items WHERE list_id = ? AND deleted_at IS NULL`,
+            listId
+        );
+        
+        return response;
+    }
 
     async function create(data: Omit<ItemDatabase, "id" | "server_id" | "checked"> & { checked?: boolean }) {
         const result = await database.runAsync(
@@ -19,26 +28,37 @@ export function useItemDatabase() {
         };
     }
 
-    async function show(listId: number) {
-        const response = await database.getAllAsync<ItemDatabase>(
-            `SELECT * FROM items WHERE list_id = ? AND deleted_at IS NULL`,
-            listId
-        );
-        
-        return response;
-    }
-
     async function update(data: any) {
         const { sql, params } = buildUpdateQuery("items", data.id, data);
         const statement = await database.prepareAsync(sql);
         
-
         try {
             await statement.executeAsync(params);
         } catch (error) {
             throw error
         } finally {
             await statement.finalizeAsync()
+        }
+    }
+
+    async function upsert(data: ItemDatabase) {  
+        const result = await database.runAsync(
+            `INSERT INTO items (server_id, list_id, name, checked, sync_status)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT (server_id) DO UPDATE SET
+               name = excluded.name,
+               checked = excluded.checked,
+               sync_status = "synced"`,
+            data.server_id,
+            data.list_id,
+            data.name,
+            data.checked ? 1 : 0,
+            data.sync_status || "synced"
+        )
+        
+        return {
+            id: Number(result.lastInsertRowId),
+            name: data.name,
         }
     }
 
@@ -56,64 +76,7 @@ export function useItemDatabase() {
         }
     }
 
-    async function getLocalListId(serverId: number) {
-        
-        const result = await database.getAllAsync<{ id: number }>(`
-            SELECT id
-            FROM lists
-            WHERE server_id = ?
-            `, serverId);
-            
-            return result[0].id;
-    }
-
-    async function upsert(data: ItemDatabase) {
-        
-        const result = await database.runAsync(
-            `INSERT INTO items (server_id, list_id, name, checked, sync_status)
-             VALUES (?, ?, ?, ?, ?)
-             ON CONFLICT (server_id) DO UPDATE SET
-               name = excluded.name,
-               checked = excluded.checked,
-               sync_status = "synced"`,
-            data.server_id,
-            data.list_id,
-            data.name,
-            data.checked ? 1 : 0,
-            data.sync_status || "synced"
-        )
-        
-
-        return {
-            id: Number(result.lastInsertRowId),
-            name: data.name,
-        }
-    }
-
-    async function getById(id: number) {
-        
-    return await database.getFirstAsync<{
-        id: number;
-        server_id: number | null;
-        name: string;
-    }>(
-        "SELECT id, server_id, name FROM lists WHERE id = ?",
-        [id]
-    );
-}
-
-    async function updateSyncDate() {
-
-        const now = new Date().toISOString();
-        await database.runAsync(
-            `INSERT INTO sync_metadata (id, last_sync_at) 
-            VALUES (1, ?) ON CONFLICT (id) DO UPDATE SET last_sync_at = excluded.last_sync_at`,
-            now
-        );
-    }
-
-    async function getUnsyncData(userId: number) {
-        
+    async function getUnsyncData(userId: number) {   
         const response = await database.getAllAsync<ItemDatabase>(
             `SELECT
                 i.id,
@@ -131,15 +94,16 @@ export function useItemDatabase() {
             )  AND i.sync_status <> 'synced' AND l.deleted_at IS NULL`,
             userId
         );
+
         return response;
     }
 
-    async function getLastSyncDate(): Promise<string> {
-        const date = await database.getAllAsync<{ last_sync_at: string }>(
-            "SELECT last_sync_at FROM sync_metadata WHERE id = 1"
-        );
-        return date[0].last_sync_at;
+    return { 
+        show,
+        create, 
+        update, 
+        upsert,
+        remove, 
+        getUnsyncData,
     }
-
-    return { create, show, update, remove, upsert, getUnsyncData, getLastSyncDate, updateSyncDate, getLocalListId, getById }
 }
