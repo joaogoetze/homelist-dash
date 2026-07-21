@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, StyleSheet } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 
@@ -19,6 +19,20 @@ export function ShareModal({
 }: ShareModalProps) {
   const { colors } = useColors();
 
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isDisabled = !email.trim() || !isValidEmail;
+  const inputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+  if (visible) {
+    const timer = setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }
+}, [visible]);
+
   if (!visible) return null;
 
   return (
@@ -36,6 +50,7 @@ export function ShareModal({
                 Compartilhar lista
               </Text>
               <TextInput
+                ref={inputRef}
                 placeholder="Email do usuário"
                 value={email}
                 onChangeText={onEmailChange}
@@ -54,10 +69,11 @@ export function ShareModal({
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.modalBtn, { backgroundColor: colors.accent, borderColor: colors.accent }]}
+                  style={[styles.modalShareBtn, isDisabled && styles.buttonDisabled]}
                   onPress={onShare}
+                  disabled={isDisabled}
                 >
-                  <Text style={{ color: '#fff', fontWeight: '600' }}>
+                  <Text style={[styles.buttonText, isDisabled && styles.buttonTextDisabled]}>
                     Compartilhar
                   </Text>
                 </TouchableOpacity>
@@ -74,8 +90,20 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     padding: 32,
+    paddingTop: 180,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  buttonTextDisabled: {
+    color: '#c8e6c9',
+  },
+  buttonDisabled: {
+    backgroundColor: '#73b775',
   },
   modalCard: {
     borderRadius: 16,
@@ -103,5 +131,13 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 11,
     alignItems: 'center',
+  },
+  modalShareBtn: {
+    flex: 1,
+    borderWidth: 0.5,
+    borderRadius: 10,
+    paddingVertical: 11,
+    alignItems: 'center',
+    backgroundColor: '#28a745'
   },
 });

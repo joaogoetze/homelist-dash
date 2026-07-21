@@ -8,30 +8,30 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
-import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
+// import { useAuthenticatedFetch } from '@/hooks/useAuthenticatedFetch';
 import { useColors } from '@/hooks/useColors';
-import { API_BASE } from '@/config/env';
-import { handleError } from '@/services/errorHandler';
+// import { API_BASE } from '@/config/env';
+// import { handleError } from '@/services/errorHandler';
 
 export default function ProfileScreen() {
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
-  const { logout } = useAuth();
-  const authenticatedFetch = useAuthenticatedFetch();
+  const { logout, userName, userEmail } = useAuth();
+  // const authenticatedFetch = useAuthenticatedFetch();
   const router = useRouter();
   const { colors } = useColors();
 
-  const getUser = async () => {
-    try {
-      const data = await authenticatedFetch(`${API_BASE}/users/me`);
-      setUser(data);
-    } catch (error) {
-      handleError(error);
-    }
-  };
+  // const getUser = async () => {
+  //   try {
+  //     const data = await authenticatedFetch(`${API_BASE}/users/me`);
+  //     setUser(data);
+  //   } catch (error) {
+  //     handleError(error);
+  //   }
+  // };
 
-  useEffect(() => {
-    getUser();
-  }, []);
+  // useEffect(() => {
+  //   getUser();
+  // }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -41,22 +41,20 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, width: '100%' }}>
       <View style={styles.container}>
-
-        {user && (
+  
           <View style={[styles.card, { backgroundColor: colors.card }]}>
             <View style={[styles.avatar, { backgroundColor: colors.border }]}>
               <Text style={styles.avatarText}>
-                {user?.name?.charAt(0).toUpperCase()}
+                {(userName ?? "?").charAt(0).toUpperCase()}
               </Text>
             </View>
             <Text style={[styles.name, { color: colors.text }]}>
-              {user.name}
+              {userName ?? "Usuário"}
             </Text>
             <Text style={[styles.email, { color: colors.sub }]}>
-              {user.email}
+              {userEmail}
             </Text>
           </View>
-        )}
 
         <TouchableOpacity
           style={styles.btn}

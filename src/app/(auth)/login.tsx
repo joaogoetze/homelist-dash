@@ -32,7 +32,7 @@ export default function LoginScreen() {
 
             const data = await parseResponse(response);
             
-            await login(data.accessToken, data.refreshToken, data.userId);
+            await login(data.accessToken, data.refreshToken, data.loggedUser);
 
             router.replace("/");
         } catch (error) {

@@ -14,3 +14,9 @@ export type ItemDatabase = {
     checked: boolean;
     sync_status?: string;
 };
+
+export type LoggedUser = {
+    id: number,
+    name: string | null,
+    email: string
+}
