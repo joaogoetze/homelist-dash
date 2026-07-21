@@ -39,7 +39,9 @@ export default function ListDetailScreen() {
     updateItem,
     handleDelete,
     deleteEmptyItem,
-    shareList
+    shareList,
+    editingItemId,
+    setEditingItemId
   } = useListDetailScreen(id, server_id);
 
   const newItemInputRef = useRef<TextInput>(null);
@@ -124,10 +126,13 @@ export default function ListDetailScreen() {
               isLast={index === items.length - 1}
               onToggleCheck={toggleCheck}
               onUpdateText={updateText}
-              onBlur={updateItem}
               onDelete={handleDelete}
               onKeyPress={handleKeyPress}
+              onBlur={() => {}}
+              isEditing={editingItemId === item.id}
+              onConfirm={updateItem}
               onFocus={() => {
+                setEditingItemId(item.id);
                 flatListRef.current?.scrollToIndex({
                   index,
                   animated: true,

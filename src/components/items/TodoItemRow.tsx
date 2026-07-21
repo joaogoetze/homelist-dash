@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Keyboard } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { Ionicons } from "@expo/vector-icons";
 
 export type Item = {
   id: number;
@@ -13,6 +14,8 @@ interface TodoItemRowProps {
   item: Item;
   index: number;
   isLast: boolean;
+  isEditing: boolean;
+  onConfirm: (item: Item) => void;
   onToggleCheck: (id: number) => void;
   onUpdateText: (id: number, text: string) => void;
   onBlur: (item: Item) => void;
@@ -26,6 +29,8 @@ export const TodoItemRow = React.forwardRef<TextInput, TodoItemRowProps>(({
   item,
   index,
   isLast,
+  isEditing,
+  onConfirm,
   onToggleCheck,
   onUpdateText,
   onBlur,
@@ -33,8 +38,10 @@ export const TodoItemRow = React.forwardRef<TextInput, TodoItemRowProps>(({
   onKeyPress,
   onFocus,
 }, ref) => {
+  
   const { colors } = useColors();
-
+  const inputRef = useRef<TextInput>(null);
+  
   return (
     <View
       style={[
@@ -75,6 +82,23 @@ export const TodoItemRow = React.forwardRef<TextInput, TodoItemRowProps>(({
         ]}
         multiline={false}
       />
+
+      {isEditing && (
+        <TouchableOpacity
+            onPress={() => {
+              inputRef.current?.blur();
+              Keyboard.dismiss();
+              onConfirm(item)}
+            }
+            style={styles.confirmButton}
+        >
+          <Ionicons
+              name="checkmark"
+              size={24}
+              color={colors.accent}
+          />
+        </TouchableOpacity>
+      )}
       
       <TouchableOpacity
         onPress={() => onDelete(item)}
@@ -129,5 +153,8 @@ const styles = StyleSheet.create({
   },
   deleteText: {
     fontSize: 16,
+  },
+  confirmButton: {
+    paddingLeft: 8,
   }
 });

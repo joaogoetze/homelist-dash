@@ -14,6 +14,7 @@ export function useListDetailScreen(id: string, serverIdParam?: string) {
   const [showShare, setShowShare] = useState(false);
   const [email, setEmail] = useState('');
   const [newItemText, setNewItemText] = useState('');
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
   
   const itemDb = useItemDatabase();
   const listDb = useListDatabase();
@@ -99,7 +100,10 @@ export function useListDetailScreen(id: string, serverIdParam?: string) {
       await itemDb.update({
         id: item.id,
         name: item.text,
+        sync_status: "updated"
       });
+
+      setEditingItemId(null);
     } catch(error) {
       handleError(error);
     }
@@ -151,6 +155,8 @@ export function useListDetailScreen(id: string, serverIdParam?: string) {
     email,
     setEmail,
     newItemText,
+    editingItemId,
+    setEditingItemId,
     setNewItemText,
     createItem,
     toggleCheck,
